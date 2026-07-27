@@ -13,7 +13,19 @@ FILE_KEY = "gold/"
 # 2. Caching Function to Pull Metrics from S3
 @st.cache_data(ttl=3600)
 def load_data_from_s3(bucket, prefix):
-    s3_client = boto3.client('s3')
+    
+    # ◄ REPLACE STARTING HERE: This robust block handles both local and cloud credentials
+    try:
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=st.secrets["aws"]["aws_access_key_id"],
+            aws_secret_access_key=st.secrets["aws"]["aws_secret_access_key"],
+            region_name=st.secrets["aws"]["aws_default_region"]
+        )
+    except:
+        s3_client = boto3.client('s3')
+    # ◄ END OF REPLACEMENT
+        
     response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
     files = response.get('Contents', [])
     
@@ -26,6 +38,7 @@ def load_data_from_s3(bucket, prefix):
     
     if not valid_files:
         raise FileNotFoundError(f"Could not locate active data partition blocks in s3://{bucket}/{prefix}")
+
         
     # Sort files by timestamp and grab only the newest one
     valid_files.sort(key=lambda x: x[1], reverse=True)
